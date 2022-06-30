@@ -108,13 +108,12 @@ exports.getAllReservations = getAllReservations;
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = function(options, limit = 10) {
-  console.log('options!!!', options);
   const queryParams = [];
 
   let queryString = `
     SELECT properties.*, avg(property_reviews.rating) as average_rating
     FROM properties
-    JOIN property_reviews ON properties.id = property_id
+    LEFT JOIN property_reviews ON properties.id = property_id
   `;
 
   if (options.owner_id) {
@@ -155,11 +154,10 @@ const getAllProperties = function(options, limit = 10) {
     LIMIT $${queryParams.length};
   `;
   console.log(queryString, queryParams);
-  
+
   return pool
     .query(queryString, queryParams)
     .then((response) => {
-      console.log('response', response.rows);
       return response.rows;
     })
     .catch((error) => {
@@ -175,9 +173,57 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function(property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  console.log('property', property);
+  const queryParams = [];
+  for (const value in property) {
+    if (value === 'parking_spaces' || value === 'number_of_bathrooms' || value === 'number_of_bedrooms') {
+      queryParams.push(Number(property[value]));
+    } else {
+      queryParams.push(property[value]);
+    }
+  }
+
+  console.log(queryParams);
+
+  return pool
+    .query(`
+      INSERT INTO properties(
+        owner_id, 
+        title, 
+        description, 
+        thumbnail_photo_url,
+        cover_photo_url,
+        cost_per_night,
+        parking_spaces,
+        number_of_bathrooms,
+        number_of_bedrooms,
+        country,
+        street,
+        city,
+        province,
+        post_code,
+        active)
+      VALUES (
+        $14,
+        $1,
+        $2,
+        $7,
+        $8,
+        $6,
+        $5,
+        $4,
+        $3,
+        $10,
+        $9,
+        $11,
+        $12,
+        $13,
+        true
+    ) RETURNING *;`, queryParams)
+    .then((response) => {
+      console.log('response', response.rows[0]);
+      return response.rows[0];
+    })
+    .catch((error) => {console.log(error.message)});
 }
 exports.addProperty = addProperty;
